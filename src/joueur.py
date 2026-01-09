@@ -1,12 +1,20 @@
 class joueur : 
+   
     def __init__(self, PV_initiaux = 50):
-            self.position = (1,1) 
             self.relance_boost_PM = 0
             self.relance_pousse = 0
             self.PM_INITIAUX = 1
             self.PM = 1
             self.PV = PV_initiaux
             self.PV_initiaux = PV_initiaux
+
+
+    def reset(self):
+        self.relance_boost_PM = 0
+        self.relance_pousse = 0
+        self.PM_INITIAUX = 1
+        self.PM = 1
+        self.PV = self.PV_initiaux
 
 
     def peut_avancer(self):
