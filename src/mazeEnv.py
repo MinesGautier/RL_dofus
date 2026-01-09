@@ -535,7 +535,8 @@ class MazeEnv(gym.Env):
                 else:
                     if self.maze[next_position[0], next_position[1]] == 1:
                         self._agent_location = next_position
-                        self.joueur.avancer()
+                        self.joueur.avax
+                        ncer()
                         if action == 0 or action == 1:
                             reward += self.reward_forward_move
                             if self.render_mode == "human":
