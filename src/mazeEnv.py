@@ -177,14 +177,15 @@ class MazeEnv(gym.Env):
         res = [0] * self.action_space.n
         res[5] = 1
         ##Deplacements##
-        for i in range(4):
-            if (
-                self.what_block_is_here(
-                    self._agent_location + self._action_to_direction[i]["direction"]
-                )
-                == 1
-            ):
-                res[i] = 1
+        if self.joueur.PM > 0 :
+            for i in range(4):
+                if (
+                    self.what_block_is_here(
+                        self._agent_location + self._action_to_direction[i]["direction"]
+                    )
+                    == 1
+                ):
+                    res[i] = 1
         if self.joueur.relance_boost_PM == 0:
             res[4] = 1
         if self.joueur.relance_pousse == 0:

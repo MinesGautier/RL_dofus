@@ -14,11 +14,11 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 # Training hyperparameters
 learning_rate = 0.1  # How fast to learn (higher = faster but less stable)
-n_episodes = 1_000  # Number of episodes to practice
+n_episodes = 10  # Number of episodes to practice
 start_epsilon = 1.0  # Start with 100% random actions
 epsilon_decay = (start_epsilon / n_episodes) / 3  # Reduce exploration over time
 final_epsilon = 0.1  # Always keep some exploration
-training_period = 100
+training_period = 1
 
 gym.register(
     id="gymnasium_env/MazeMinogolem-v0",
@@ -34,8 +34,8 @@ wrapped_env = FlattenObservation(env)
 # Record videos periodically (every 250 episodes)
 wrapped_env = RecordVideo(
     wrapped_env,
-    video_folder="MazeMinogolem-training",
-    name_prefix="training",
+    video_folder="training-video",
+    name_prefix="training_maze_minogolem",
     episode_trigger=lambda x: x % training_period
     == 0,  # Only record every 250th episode
 )
@@ -75,6 +75,7 @@ for episode in tqdm(range(n_episodes)):
 
         # Move to next state
         done = terminated or truncated
+        info = next_info
         obs = next_obs
 
     # Reduce exploration rate (agent becomes less random over time)

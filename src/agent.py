@@ -55,15 +55,23 @@ class mazeAgent:
         action_mask = info["action_mask"]
         if np.random.random() < self.epsilon:
             if self.use_action_mask:
+                # print("using action mask in random mode")
                 valid_actions = np.nonzero(action_mask == 1)[0]
+                # print(f"valid actions are :{valid_actions}")
                 x = np.random.choice(valid_actions)
+                # print(f"random chosen valid action is action = {x}")
+
             else:
                 x = int(np.random.random() * self.env.action_space.n)
         # With probability (1-epsilon): exploit (best known action)
         else:
             if self.use_action_mask:
+                # print("using action mask in exploitation mode")
                 valid_actions = np.nonzero(action_mask == 1)[0]
+                # print(f"valid actions are :{valid_actions}")
                 x = valid_actions[np.argmax(self.q_values[obs][valid_actions])]
+                # print(f"best valid action is action = {x}")
+
             else:
                 x = int(np.argmax(self.q_values[obs]))
         return x
