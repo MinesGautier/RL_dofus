@@ -450,11 +450,12 @@ class MazeEnv(gym.Env):
             action = int(input())
             print(self.step(action))
 
-    def terminate_because_stuck(self):
-        if self.is_stuck():
+    def terminate_next_because_stuck(self):
+        if self.stuck:
             return True
         else:
-            self.is_stuck == self.is_stuck()
+            self.stuck = self.is_stuck()
+            return False
 
     def is_stuck(self):
         if self.nombre_vides_adjacents(self._agent_location) != 0:
@@ -588,7 +589,7 @@ class MazeEnv(gym.Env):
         terminated = False
 
         # Check if agent is stuck
-        if self.terminate_because_stuck():
+        if self.terminate_next_because_stuck():
             reward += self.penalty_stuck
             terminated = True
         # Check if agent is dead
@@ -699,6 +700,10 @@ class MazeEnv(gym.Env):
                 f"ACTION:",
                 f"{last_dec}",
             ]
+
+            if self.stuck :
+                stats.append(f"")
+                stats.append(f"PLAYER IS STUCK")
 
             # Draw Text on Sidebar
             for i, text in enumerate(stats):

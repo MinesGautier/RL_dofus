@@ -5,7 +5,7 @@ import os
 import torch
 
 
-class mazeAgent:
+class QLearningAgent:
     def __init__(
         self,
         env: gym.Env,
