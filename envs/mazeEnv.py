@@ -177,7 +177,7 @@ class MazeEnv(gym.Env):
         res = [0] * self.action_space.n
         res[5] = 1
         ##Deplacements##
-        if self.joueur.PM > 0 :
+        if self.joueur.PM > 0:
             for i in range(4):
                 if (
                     self.what_block_is_here(
@@ -701,7 +701,7 @@ class MazeEnv(gym.Env):
                 f"{last_dec}",
             ]
 
-            if self.stuck :
+            if self.stuck:
                 stats.append(f"")
                 stats.append(f"PLAYER IS STUCK")
 
