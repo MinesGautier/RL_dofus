@@ -203,7 +203,7 @@ class MazeEnv(gym.Env):
                         == 1
                     ):
                         res[i] = 1
-        return res
+        return np.array(res)
 
     def read_minogolems(self):
         res = np.array([-1] * 8, dtype=int)
@@ -519,7 +519,7 @@ class MazeEnv(gym.Env):
                 res += self.penalty_invalid_move
         return res
 
-    def step(self, action):
+    def step(self, action: int):
         """Execute one timestep within the environment.
 
         Args:

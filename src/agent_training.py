@@ -65,13 +65,13 @@ for episode in tqdm(range(n_episodes)):
     # Play one complete hand
     while not done:
         # Agent chooses action (initially random, gradually more intelligent)
-        action = agent.get_action(obs)
+        action = agent.get_action(info=info, obs=obs)
 
         # Take action and observe result
-        next_obs, reward, terminated, truncated, info = wrapped_env.step(action)
+        next_obs, reward, terminated, truncated, next_info = wrapped_env.step(action)
 
         # Learn from this experience
-        agent.update(obs, action, reward, terminated, next_obs)
+        agent.update(obs, action, reward, terminated, next_obs, next_info)
 
         # Move to next state
         done = terminated or truncated

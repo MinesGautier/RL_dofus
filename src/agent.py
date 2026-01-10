@@ -14,7 +14,7 @@ class mazeAgent:
         epsilon_decay: float,
         final_epsilon: float,
         discount_factor: float = 0.95,
-        use_action_mask: bool = False,
+        use_action_mask: bool = True,
     ):
         """Initialize a Q-Learning agent.
 
@@ -31,7 +31,7 @@ class mazeAgent:
         # Q-table: maps (state, action) to expected reward
         # defaultdict automatically creates entries with zeros for new states
         self.q_values = defaultdict(lambda: np.zeros(env.action_space.n))
-        self.q_value_invalid_move = -1e9
+        self.use_action_mask = use_action_mask
 
         self.lr = learning_rate
         self.discount_factor = discount_factor  # How much we care about future rewards
@@ -66,7 +66,7 @@ class mazeAgent:
                 x = valid_actions[np.argmax(self.q_values[obs][valid_actions])]
             else:
                 x = int(np.argmax(self.q_values[obs]))
-            return x
+        return x
 
     def save(self, filename="latest_model"):
         # Create the folder if it doesn't exist
@@ -101,7 +101,9 @@ class mazeAgent:
         valid_next_actions = np.nonzero(next_action_mask == 1)[0]
 
         if self.use_action_mask:
-            future_q_value = (not terminated) * np.max(self.q_values[next_obs][valid_next_actions])
+            future_q_value = (not terminated) * np.max(
+                self.q_values[next_obs][valid_next_actions]
+            )
         else:
             future_q_value = (not terminated) * np.max(self.q_values[next_obs])
 
