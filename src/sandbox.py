@@ -1,8 +1,11 @@
-from mazeEnv import MazeEnv
+# from mazeEnv import MazeEnv
+import numpy as np
 
-env = MazeEnv(render_mode="human")  # Test with human mode first
+# env = MazeEnv(render_mode="human")  # Test with human mode first
 
-env.manual_step()
+# env.manual_step()
+
+
 
 # obs, _ = env.reset()
 # rgb_list = []

@@ -14,6 +14,7 @@ class mazeAgent:
         epsilon_decay: float,
         final_epsilon: float,
         discount_factor: float = 0.95,
+        use_action_mask: bool = False,
     ):
         """Initialize a Q-Learning agent.
 
@@ -43,12 +44,7 @@ class mazeAgent:
         # Track learning progress
         self.training_error = []
 
-    def _mask_invalid_actions(self, observation, valid_actions):
-        for i in range(len(self.q_values[observation])):
-            if i not in valid_actions:
-                self.q_values[observation][i] = self.q_value_invalid_move
-
-    def get_action(self, obs: tuple[int, int, bool]) -> int:
+    def get_action(self, info, obs: tuple[int, int, bool]) -> int:
         """Choose an action using epsilon-greedy strategy.
 
         Returns:
@@ -56,14 +52,20 @@ class mazeAgent:
         """
         # With probability epsilon: explore (random action)
         obs = tuple(obs)
-        valid_actions = self.env.unwrapped.get_possible_actions()
+        action_mask = info["action_mask"]
         if np.random.random() < self.epsilon:
-            i = int(np.random.random() * len(valid_actions))
-            return valid_actions[i]
+            if self.use_action_mask:
+                valid_actions = np.nonzero(action_mask == 1)[0]
+                x = np.random.choice(valid_actions)
+            else:
+                x = int(np.random.random() * self.env.action_space.n)
         # With probability (1-epsilon): exploit (best known action)
         else:
-            self._mask_invalid_actions(obs, valid_actions)
-            x = int(np.argmax(self.q_values[obs]))
+            if self.use_action_mask:
+                valid_actions = np.nonzero(action_mask == 1)[0]
+                x = valid_actions[np.argmax(self.q_values[obs][valid_actions])]
+            else:
+                x = int(np.argmax(self.q_values[obs]))
             return x
 
     def save(self, filename="latest_model"):
@@ -85,6 +87,7 @@ class mazeAgent:
         reward: float,
         terminated: bool,
         next_obs: tuple[int, int, bool],
+        next_info,
     ):
         """Update Q-value based on experience.
 
@@ -94,8 +97,13 @@ class mazeAgent:
         # (Zero if episode terminated - no future rewards possible)
         obs = tuple(obs)
         next_obs = tuple(next_obs)
+        next_action_mask = next_info["action_mask"]
+        valid_next_actions = np.nonzero(next_action_mask == 1)[0]
 
-        future_q_value = (not terminated) * np.max(self.q_values[next_obs])
+        if self.use_action_mask:
+            future_q_value = (not terminated) * np.max(self.q_values[next_obs][valid_next_actions])
+        else:
+            future_q_value = (not terminated) * np.max(self.q_values[next_obs])
 
         # What should the Q-value be? (Bellman equation)
         target = reward + self.discount_factor * future_q_value

@@ -1,4 +1,5 @@
 import matplotlib
+from sympy import false
 
 matplotlib.use("qtagg")
 from typing import Optional
@@ -10,7 +11,7 @@ import cv2
 
 
 class MazeEnv(gym.Env):
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 10}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 3}
 
     maze_observation_size = 9
     penalty_invalid_move = -100
@@ -75,6 +76,8 @@ class MazeEnv(gym.Env):
         self.maze = self.initial_maze.copy()
         self.size = self.maze.shape
         self.render_mode = render_mode
+        self.stuck = False
+        self.last_decision_taken = -1
 
         self.__ax1 = None
 
@@ -123,17 +126,17 @@ class MazeEnv(gym.Env):
         self._action_to_direction = {
             0: {
                 "direction": np.array([0, 1]),
-                "nom": "Déplacement droite",
+                "nom": "Deplacement droite",
             },  # Move right (column + 1)
             1: {
                 "direction": np.array([-1, 0]),
-                "nom": "Déplacement haut",
+                "nom": "Deplacement haut",
             },  # Move up (row - 1)
             2: {
                 "direction": np.array([0, -1]),
-                "nom": "Déplacement gauche",
+                "nom": "Deplacement gauche",
             },  # Move left (column - 1)
-            3: {"direction": np.array([1, 0]), "nom": "Déplacement bas"},
+            3: {"direction": np.array([1, 0]), "nom": "Deplacement bas"},
             4: {"nom": "Boost PM"},
             5: {"nom": "Passe tour"},
             6: {
@@ -170,9 +173,10 @@ class MazeEnv(gym.Env):
             },  # placer un bloc à gauche
         }
 
-    def get_possible_actions(self):
-        res = [5]
-        ##Déplacements##
+    def get_action_mask(self):
+        res = [0] * self.action_space.n
+        res[5] = 1
+        ##Deplacements##
         for i in range(4):
             if (
                 self.what_block_is_here(
@@ -180,9 +184,9 @@ class MazeEnv(gym.Env):
                 )
                 == 1
             ):
-                res.append(i)
+                res[i] = 1
         if self.joueur.relance_boost_PM == 0:
-            res.append(4)
+            res[4] = 1
         if self.joueur.relance_pousse == 0:
             for i in range(6, 10):
                 if (
@@ -198,7 +202,7 @@ class MazeEnv(gym.Env):
                         )
                         == 1
                     ):
-                        res.append(i)
+                        res[i] = 1
         return res
 
     def read_minogolems(self):
@@ -373,7 +377,8 @@ class MazeEnv(gym.Env):
         return {
             "distance": np.linalg.norm(
                 np.subtract(self._agent_location, self._target_location), ord=1
-            )
+            ),
+            "action_mask": self.get_action_mask(),
         }
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
@@ -390,6 +395,9 @@ class MazeEnv(gym.Env):
         super().reset(seed=seed)
 
         self.render()
+
+        self.stuck = False
+        self.last_decision_taken = -1
 
         self._agent_location = self._initial_agent_location
         self.maze = self.initial_maze.copy()
@@ -440,6 +448,12 @@ class MazeEnv(gym.Env):
             ## Play input
             action = int(input())
             print(self.step(action))
+
+    def terminate_because_stuck(self):
+        if self.is_stuck():
+            return True
+        else:
+            self.is_stuck == self.is_stuck()
 
     def is_stuck(self):
         if self.nombre_vides_adjacents(self._agent_location) != 0:
@@ -515,6 +529,7 @@ class MazeEnv(gym.Env):
             tuple: (observation, reward, terminated, truncated, info)
         """
         # Map the discrete action (0-3) to a movement direction
+        self.last_decision_taken = action
         reward = 0
         if action < 4:
             if self.joueur.peut_avancer():
@@ -572,7 +587,7 @@ class MazeEnv(gym.Env):
         terminated = False
 
         # Check if agent is stuck
-        if self.is_stuck():
+        if self.terminate_because_stuck():
             reward += self.penalty_stuck
             terminated = True
         # Check if agent is dead
@@ -662,8 +677,47 @@ class MazeEnv(gym.Env):
             rgb_array = cv2.resize(
                 rgb_array, (target_size, target_size), interpolation=cv2.INTER_NEAREST
             )
+            # 4. Create the Sidebar (The "Separate Zone")
+            # Height matches game_rgb, width is our sidebar_width
+            sidebar = np.zeros((target_size, 250, 3), dtype=np.uint8)
+            sidebar[:] = (40, 40, 40)  # Dark grey background for a clean look
 
-            return rgb_array
+            # Prepare Text
+            last_dec = (
+                "None"
+                if self.last_decision_taken == -1
+                else self._action_to_direction[self.last_decision_taken]["nom"]
+            )
+            stats = [
+                f"STATS",
+                f"-----",
+                f"Tour: {self.tour}",
+                f"PV: {self.joueur.PV}",
+                f"PM: {self.joueur.PM}",
+                f"",
+                f"ACTION:",
+                f"{last_dec}",
+            ]
+
+            # Draw Text on Sidebar
+            for i, text in enumerate(stats):
+                y_pos = 40 + (i * 30)
+                cv2.putText(
+                    sidebar,
+                    text,
+                    (20, y_pos),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (255, 255, 255),
+                    1,
+                    cv2.LINE_AA,
+                )
+
+            # 5. Concatenate Sidebar and Game Area
+            # This puts the sidebar at the very left
+            final_frame = np.hstack((sidebar, rgb_array))
+
+            return final_frame
 
         if self.render_mode == "human":
             print("Entering render function in human mode ")

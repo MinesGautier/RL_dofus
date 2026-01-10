@@ -14,16 +14,16 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 # Training hyperparameters
 learning_rate = 0.1  # How fast to learn (higher = faster but less stable)
-n_episodes = 10_000  # Number of episodes to practice
+n_episodes = 1_000  # Number of episodes to practice
 start_epsilon = 1.0  # Start with 100% random actions
 epsilon_decay = (start_epsilon / n_episodes) / 3  # Reduce exploration over time
 final_epsilon = 0.1  # Always keep some exploration
-training_period = 1_000
+training_period = 100
 
 gym.register(
     id="gymnasium_env/MazeMinogolem-v0",
     entry_point=MazeEnv,
-    max_episode_steps=1_000,  # Prevent infinite episodes
+    max_episode_steps=2_000,  # Prevent infinite episodes
 )
 
 # Create environment and agent
