@@ -6,6 +6,7 @@ farama-notifications==0.0.4
 filelock==3.20.3
 fonttools==4.61.1
 fsspec==2026.1.0
+-e file:///Users/gautier/Documents/RL_minogolem/src
 gymnasium==1.2.3
 imageio==2.37.2
 imageio-ffmpeg==0.6.0
@@ -33,6 +34,7 @@ pytz==2025.2
 seaborn==0.13.2
 shiboken6==6.10.1
 six==1.17.0
+stable-baselines3==2.7.1
 sympy==1.14.0
 torch==2.9.1
 tqdm==4.67.1
