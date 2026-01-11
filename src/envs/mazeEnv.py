@@ -59,9 +59,9 @@ class mazeEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 3}
 
     maze_observation_size = 9
-    penalty_invalid_move = -100
+    penalty_invalid_move = -10
     penalty_backward_move = -1
-    reward_forward_move = 5
+    reward_forward_move = 10
     reward_useful_push = 10
     reward_valid_push = 3
     penalty_useless_boost = -10
@@ -156,7 +156,7 @@ class mazeEnv(gym.Env):
                     dtype=int,
                 ),
                 "PV": gym.spaces.Box(
-                    0, self.mazeJoueur.PV_initiaux, shape=(1,), dtype=int
+                    low=0, high=50, shape=(1,), dtype=int
                 ),
                 "PM": gym.spaces.Box(0, 10, shape=(1,), dtype=int),
                 "Relance_boost_PM": gym.spaces.Box(0, 10, shape=(1,), dtype=int),
@@ -409,11 +409,11 @@ class mazeEnv(gym.Env):
             "agent": np.array(self._agent_location),
             "target": np.array(self._target_location),
             "maze_observation": self.maze_observation(),
-            "PV": np.array(self.mazeJoueur.PV),
-            "PM": np.array(self.mazeJoueur.PM),
-            "Relance_boost_PM": np.array(self.mazeJoueur.relance_boost_PM),
-            "Relance_pousse": np.array(self.mazeJoueur.relance_pousse),
-            "Minogolems_next_plays": self.read_minogolems(),
+            "PV": np.array([self.mazeJoueur.PV], dtype=int),
+            "PM": np.array([self.mazeJoueur.PM], dtype=int),
+            "Relance_boost_PM": np.array([self.mazeJoueur.relance_boost_PM]),
+            "Relance_pousse": np.array([self.mazeJoueur.relance_pousse]),
+            "Minogolems_next_plays": np.array(self.read_minogolems()),
         }
 
     def _get_info(self):
@@ -578,8 +578,14 @@ class mazeEnv(gym.Env):
             tuple: (observation, reward, terminated, truncated, info)
         """
         # Map the discrete action (0-3) to a movement direction
-        self.last_decision_taken = action
+
         reward = 0
+        try:
+            action = int(action)
+        except:
+            action = int(action[0])
+
+        self.last_decision_taken = action
         if action < 4:
             if self.mazeJoueur.peut_avancer():
                 direction = self._action_to_direction[action]["direction"]
@@ -820,37 +826,6 @@ class mazeEnv(gym.Env):
                 print(row)
 
 
-# TEST##
-
-# my_env = mazeEnv(render_mode="rgb_array")
-# my_env.render()
-# my_env.manual_step()
-
-
-#####REGISTER
-
-# # Register the environment so we can create it with gym.make()
-# gym.register(
-#     id="gymnasium_env/MazeMinogolem-v0",
-#     entry_point=mazeEnv,
-#     max_episode_steps=300,  # Prevent infinite episodes
-# )
-
-# # Create the environment like any built-in environment
-# env = gym.make("gymnasium_env/MazeMinogolem-v0")
-
-# # Create the environment like any built-in environment
-# gym.pprint_registry()
-
-
-# import gymnasium as gym
-
-
-# from gymnasium.utils.env_checker import check_env
-
-# # This will catch many common issues
-# try:
-#     check_env(mazeEnv)
-#     print("Environment passes all checks!")
-# except Exception as e:
-#     print(f"Environment has issues: {e}")
+if __name__ == "__main__" :
+    env = MazeEnv(render_mode="human")  # Test with human mode first
+    env.manual_step()

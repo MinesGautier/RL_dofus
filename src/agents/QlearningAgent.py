@@ -3,9 +3,9 @@ import gymnasium as gym
 import numpy as np
 import os
 import torch
+from agents.CommonAgent import CommonAgent
 
-
-class QlearningAgent:
+class QlearningAgent(CommonAgent):
     def __init__(
         self,
         env: gym.Env,
@@ -75,18 +75,6 @@ class QlearningAgent:
             else:
                 x = int(np.argmax(self.q_values[obs]))
         return x
-
-    def save(self, filename="latest_model"):
-        # Create the folder if it doesn't exist
-        permanent_folder = "SAVED_MODELS_FOLDER"
-        file_path = permanent_folder + "/" + filename + ".tar"
-        os.makedirs(permanent_folder, exist_ok=True)
-        state = {"state_dict": dict(self.q_values)}
-        torch.save(state, file_path)
-
-    def load(self, filepath):
-        saved_model_q_values = torch.load(filepath)
-        self.q_values = saved_model_q_values
 
     def update(
         self,

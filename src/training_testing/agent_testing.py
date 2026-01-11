@@ -2,7 +2,8 @@ import gymnasium as gym
 import numpy as np
 from gymnasium.wrappers import RecordEpisodeStatistics, RecordVideo, FlattenObservation
 from envs.mazeEnv import mazeEnv
-from agents.QlearningAgent import QlearningAgent
+from stable_baselines3 import DQN
+
 
 # Training hyperparameters
 learning_rate = 0.1  # How fast to learn (higher = faster but less stable)
@@ -15,31 +16,11 @@ training_period = 1_000
 gym.register(
     id="gymnasium_env/MazeMinogolem-v0",
     entry_point=mazeEnv,
-    max_episode_steps=1_000,  # Prevent infinite episodes
+    max_episode_steps=10_000,  # Prevent infinite episodes
 )
 # Create environment and agent
 env = gym.make("gymnasium_env/MazeMinogolem-v0", render_mode="rgb_array")
 env = gym.wrappers.RecordEpisodeStatistics(env, buffer_length=n_episodes)
-wrapped_env = FlattenObservation(env)
-
-# Record videos periodically (every xx episodes)
-wrapped_env = RecordVideo(
-    wrapped_env,
-    video_folder="MazeMinogolem-training",
-    name_prefix="training",
-    episode_trigger=lambda x: x % training_period
-    == 0,  # Only record every 250th episode
-)
-
-agent = QLearningAgent(
-    env=wrapped_env,
-    learning_rate=1,
-    initial_epsilon=0,
-    epsilon_decay=0,
-    final_epsilon=0,
-)
-agent.load("/Users/gautier/Documents/RL_minogolem/SAVED_MODELS_FOLDER/latest_model.tar")
-
 
 # Configuration
 num_eval_episodes = 4
@@ -55,14 +36,16 @@ env = RecordVideo(
     env,
     video_folder="MazeMinogolem-agent",  # Folder to save videos
     name_prefix="eval",  # Prefix for video filenames
-    episode_trigger=lambda x: x % 10 == 0,  # Record every episode
+    episode_trigger=lambda x: x % training_period == 0,  # Record every episode
 )
 
 # Add episode statistics tracking
 env = RecordEpisodeStatistics(env, buffer_length=num_eval_episodes)
+agent = DQN("MultiInputPolicy", env, verbose=1,exploration_final_eps=0.2)
+agent.learn(total_timesteps=1_000, log_interval=4)
+agent.save("TRAINED_AGENT/DQN_26_01_11")
 
 print(f"Starting evaluation for {num_eval_episodes} episodes...")
-print("Videos will be saved to: cartpole-agent/")
 
 for episode_num in range(num_eval_episodes):
     obs, info = env.reset()
@@ -72,7 +55,8 @@ for episode_num in range(num_eval_episodes):
     episode_over = False
     while not episode_over:
         # Replace this with your trained agent's policy
-        action = agent.get_action(obs)
+        print(obs)
+        action = agent.predict(obs)
 
         obs, reward, terminated, truncated, info = env.step(action)
         episode_reward += reward
