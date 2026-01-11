@@ -1,8 +1,8 @@
 import gymnasium as gym
 import numpy as np
 from gymnasium.wrappers import RecordEpisodeStatistics, RecordVideo, FlattenObservation
-from mazeEnv import MazeEnv
-from agent import mazeAgent
+from envs.mazeEnv import mazeEnv
+from agents.QlearningAgent import QlearningAgent
 
 # Training hyperparameters
 learning_rate = 0.1  # How fast to learn (higher = faster but less stable)
@@ -14,7 +14,7 @@ training_period = 1_000
 
 gym.register(
     id="gymnasium_env/MazeMinogolem-v0",
-    entry_point=MazeEnv,
+    entry_point=mazeEnv,
     max_episode_steps=1_000,  # Prevent infinite episodes
 )
 # Create environment and agent
@@ -31,7 +31,7 @@ wrapped_env = RecordVideo(
     == 0,  # Only record every 250th episode
 )
 
-agent = mazeAgent(
+agent = QLearningAgent(
     env=wrapped_env,
     learning_rate=1,
     initial_epsilon=0,

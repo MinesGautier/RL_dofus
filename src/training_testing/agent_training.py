@@ -4,10 +4,8 @@ from tqdm import tqdm  # Progress bar
 from gymnasium.wrappers import RecordVideo, FlattenObservation
 import logging
 from matplotlib import pyplot as plt
-from mazeEnv import MazeEnv
-from agent import mazeAgent
-
-##### TRAIN ######
+from envs.mazeEnv import mazeEnv
+from agents.QlearningAgent import QlearningAgent
 
 # Set up logging for episode statistics
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -22,7 +20,7 @@ training_period = 1
 
 gym.register(
     id="gymnasium_env/MazeMinogolem-v0",
-    entry_point=MazeEnv,
+    entry_point="envs.mazeEnv:mazeEnv",
     max_episode_steps=2_000,  # Prevent infinite episodes
 )
 
@@ -40,7 +38,7 @@ wrapped_env = RecordVideo(
     == 0,  # Only record every 250th episode
 )
 
-agent = mazeAgent(
+agent = QlearningAgent(
     env=wrapped_env,
     learning_rate=learning_rate,
     initial_epsilon=start_epsilon,
