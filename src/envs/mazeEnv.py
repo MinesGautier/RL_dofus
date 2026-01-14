@@ -8,7 +8,6 @@ import gymnasium as gym
 import random as rand
 import cv2
 
-
 class mazeJoueur:
     def __init__(self, PV_initiaux=50):
         self.relance_boost_PM = 0
@@ -71,6 +70,7 @@ class mazeEnv(gym.Env):
     penalty_stuck = -10
     penalty_dumber_than_minogolem = -10
     reward_win = 100
+    penalty_over_visited_square = -10
 
     initial_maze = np.array(
         [
@@ -123,6 +123,8 @@ class mazeEnv(gym.Env):
         self.render_mode = render_mode
         self.stuck = False
         self.last_decision_taken = -1
+        self.visited_squares_memory = np.zeros_like(self.maze)
+
 
         self.__ax1 = None
 
@@ -446,6 +448,8 @@ class mazeEnv(gym.Env):
 
         self.stuck = False
         self.last_decision_taken = -1
+        self.visited_squares_memory = np.zeros_like(self.maze)
+
 
         self._agent_location = self._initial_agent_location
         self.maze = self.initial_maze.copy()
@@ -579,6 +583,7 @@ class mazeEnv(gym.Env):
         """
         # Map the discrete action (0-3) to a movement direction
 
+        self.visited_squares_memory[self._agent_location]+=1
         reward = 0
         try:
             action = int(action)
@@ -587,36 +592,24 @@ class mazeEnv(gym.Env):
 
         self.last_decision_taken = action
         if action < 4:
-            if self.mazeJoueur.peut_avancer():
-                direction = self._action_to_direction[action]["direction"]
-                next_position = self._agent_location + direction
-                if self.render_mode == "human":
+            direction = self._action_to_direction[action]["direction"]
+            next_position = self._agent_location + direction
+            if self.render_mode == "human":
                     print(f"Agent is trying to go in {next_position}")
-                (nrows, ncols) = self.size
-                # Update agent position, ensuring it stays within grid bounds
-                # np.clip prevents the agent from walking off the edge
-                if (
-                    next_position[0] < 0
-                    or next_position[0] >= nrows
-                    or next_position[1] < 0
-                    or next_position[1] >= ncols
-                ):
-                    reward += self.penalty_invalid_move
-                else:
-                    if self.maze[next_position[0], next_position[1]] == 1:
-                        self._agent_location = next_position
-                        self.mazeJoueur.avancer()
-                        if action == 0 or action == 1:
-                            reward += self.reward_forward_move
-                            if self.render_mode == "human":
-                                print(
-                                    f"Bravo tu as avancé : + {self.reward_forward_move} pour Gryffondor"
-                                )
-                    else:
-                        reward += self.penalty_invalid_move
+            if self.mazeJoueur.peut_avancer() and self.what_block_is_here(next_position) == 1 :
+                self._agent_location = next_position
+                self.mazeJoueur.avancer()
+                if action == 0 or action == 1:
+                    reward += self.reward_forward_move
+                    if self.render_mode == "human":
+                        print(
+                            f"Bravo tu as avancé : + {self.reward_forward_move} pour Gryffondor"
+                        )   
+                if self.visited_squares_memory[self._agent_location[0],self._agent_location[1] ] > 2 : 
+                    reward += self.penalty_over_visited_square
+                    if self.render_mode == "human":
+                        print(f"Agent cannot moove to {next_position}")
             else:
-                if self.render_mode == "human":
-                    print("Le mazeJoueur n'a plus de PM")
                 reward += self.penalty_invalid_move
         elif action == 4:
             if self.mazeJoueur.relance_boost_PM == 0:
@@ -827,5 +820,5 @@ class mazeEnv(gym.Env):
 
 
 if __name__ == "__main__" :
-    env = MazeEnv(render_mode="human")  # Test with human mode first
+    env = mazeEnv(render_mode="human")  # Test with human mode first
     env.manual_step()
