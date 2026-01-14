@@ -11,7 +11,8 @@ n_episodes = 100  # Number of episodes to practice
 start_epsilon = 1.0  # Start with 100% random actions
 epsilon_decay = (start_epsilon / n_episodes) / 3  # Reduce exploration over time
 final_epsilon = 0.1  # Always keep some exploration
-training_period = 1_000
+num_eval_episodes = 10
+recording_period = 1
 
 gym.register(
     id="gymnasium_env/MazeMinogolem-v0",
@@ -19,31 +20,27 @@ gym.register(
     max_episode_steps=10_000,  # Prevent infinite episodes
 )
 # Create environment and agent
-env = gym.make("gymnasium_env/MazeMinogolem-v0", render_mode="rgb_array")
-env = gym.wrappers.RecordEpisodeStatistics(env, buffer_length=n_episodes)
-
 # Configuration
-num_eval_episodes = 4
 env_name = "gymnasium_env/MazeMinogolem-v0"  # Replace with your environment
-
 # Create environment with recording capabilities
 env = gym.make(
     env_name, render_mode="rgb_array"
 )  # rgb_array needed for video recording
 
 # Add video recording for every episode
+
 env = RecordVideo(
     env,
     video_folder="MazeMinogolem-agent",  # Folder to save videos
     name_prefix="eval",  # Prefix for video filenames
-    episode_trigger=lambda x: x % training_period == 0,  # Record every episode
+    episode_trigger=lambda x: x % recording_period == 0,  # Record every episode
 )
 
 # Add episode statistics tracking
 env = RecordEpisodeStatistics(env, buffer_length=num_eval_episodes)
+
 agent = DQN("MultiInputPolicy", env, verbose=1,exploration_final_eps=0.2)
-agent.learn(total_timesteps=1_000, log_interval=4)
-agent.save("TRAINED_AGENT/DQN_26_01_11")
+agent = agent.load("TRAINED_AGENT/DQN_26_01_11-100Mep.zip")
 
 print(f"Starting evaluation for {num_eval_episodes} episodes...")
 
@@ -55,9 +52,7 @@ for episode_num in range(num_eval_episodes):
     episode_over = False
     while not episode_over:
         # Replace this with your trained agent's policy
-        print(obs)
         action = agent.predict(obs)
-
         obs, reward, terminated, truncated, info = env.step(action)
         episode_reward += reward
         step_count += 1
