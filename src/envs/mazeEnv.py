@@ -9,13 +9,17 @@ import random as rand
 import cv2
 
 class mazeJoueur:
-    def __init__(self, PV_initiaux=50):
+    cooldown_boost_PM = 10
+    cooldown_pousse = 10
+
+    def __init__(self, PV_initiaux=49):
         self.relance_boost_PM = 0
         self.relance_pousse = 0
         self.PM_INITIAUX = 1
         self.PM = 1
         self.PV = PV_initiaux
         self.PV_initiaux = PV_initiaux
+        
 
     def reset(self):
         self.relance_boost_PM = 0
@@ -23,6 +27,13 @@ class mazeJoueur:
         self.PM_INITIAUX = 1
         self.PM = 1
         self.PV = self.PV_initiaux
+    
+    def avidite(self):
+        self.PV-=1
+        if self.relance_boost_PM>0 :
+            self.relance_boost_PM-=1
+        if self.relance_pousse>0:
+            self.relance_pousse-=1
 
     def peut_avancer(self):
         return self.PM > 0
@@ -36,10 +47,13 @@ class mazeJoueur:
         else:
             print("Vous n'avez plus de PM")
 
+    def pousse(self):
+        self.relance_pousse = self.cooldown_pousse
+
     def boost_PM(self):
         if self.relance_boost_PM == 0:
             self.PM += 1
-            self.relance_boost_PM = 10
+            self.relance_boost_PM = self.cooldown_boost_PM
         else:
             print(
                 f"le sort boost_PM n'est pas accessible avant {self.relance_boost_PM} tours"
@@ -58,18 +72,22 @@ class mazeEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 3}
 
     maze_observation_size = 9
+
     penalty_invalid_move = -10
-    penalty_backward_move = -1
+    # penalty_backward_move = -1
     reward_forward_move = 10
     reward_useful_push = 10
     reward_valid_push = 3
     penalty_useless_boost = -10
     reward_distance_traveled = 10
+
     reward_smarter_than_minogolem = 30
-    penalty_dying = -5
+    penalty_dumber_than_minogolem = -30
+
+    penalty_loosing_because_PV = -5
     penalty_stuck = -10
-    penalty_dumber_than_minogolem = -10
     reward_win = 100
+    
     penalty_over_visited_square = -10
 
     initial_maze = np.array(
@@ -201,6 +219,7 @@ class mazeEnv(gym.Env):
                 "nom": "Pousse gauche",
             },  # Move left (column - 1)
             9: {"direction": np.array([1, 0]), "nom": "Pousse bas"},
+            10: {"nom": "avidité"},
         }
 
         self._minogolem_position_to_direction = {
@@ -429,6 +448,7 @@ class mazeEnv(gym.Env):
                 np.subtract(self._agent_location, self._target_location), ord=1
             ),
             "action_mask": self.get_action_mask(),
+            "visited_squares_memory": self.visited_squares_memory
         }
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
@@ -537,6 +557,23 @@ class mazeEnv(gym.Env):
             res += self.penalty_useless_boost
         return res
 
+    def is_still_winnable(self):
+        remaining_distance = np.linalg.norm(
+                np.subtract(self._agent_location, self._target_location), ord=1
+            )
+        count_possible_boosts = ((self.mazeJoueur.PV - self.mazeJoueur.relance_boost_PM) // (self.mazeJoueur.cooldown_boost_PM) + 1 )
+        if self.render_mode == "human":
+            print(self.render_is_still_winnable())
+        return remaining_distance < self.mazeJoueur.PV + count_possible_boosts
+
+    def render_is_still_winnable(self):
+        remaining_distance = np.linalg.norm(
+                np.subtract(self._agent_location, self._target_location), ord=1
+            )
+        count_possible_boosts = ((self.mazeJoueur.PV - self.mazeJoueur.relance_boost_PM) // (self.mazeJoueur.cooldown_boost_PM) + 1 )
+        return(f"is it still winnable ? Exit is {remaining_distance} away, player has {self.mazeJoueur.PV} PV remaining, and could still use {count_possible_boosts} boosts PM")
+        
+
     def pousse(self, direction):
         res = 0
         if self.mazeJoueur.relance_pousse > 0:
@@ -555,7 +592,7 @@ class mazeEnv(gym.Env):
                     )
                 self.maze[aiming_at[0], aiming_at[1]] = 1
                 self.maze[final_block_position[0], final_block_position[1]] = 2
-                self.mazeJoueur.relance_pousse = 10
+                self.mazeJoueur.pousse()
                 if self.est_carrefour(aiming_at):
                     res += self.reward_useful_push
                     if self.render_mode == "human":
@@ -583,7 +620,6 @@ class mazeEnv(gym.Env):
         """
         # Map the discrete action (0-3) to a movement direction
 
-        self.visited_squares_memory[self._agent_location]+=1
         reward = 0
         try:
             action = int(action)
@@ -599,6 +635,7 @@ class mazeEnv(gym.Env):
             if self.mazeJoueur.peut_avancer() and self.what_block_is_here(next_position) == 1 :
                 self._agent_location = next_position
                 self.mazeJoueur.avancer()
+                self.visited_squares_memory[self._agent_location[0],self._agent_location[1]]+=1
                 if action == 0 or action == 1:
                     reward += self.reward_forward_move
                     if self.render_mode == "human":
@@ -629,18 +666,25 @@ class mazeEnv(gym.Env):
             elif self.tour > 2 and self.tour % 4 == 2:
                 self.generate_pattern()
 
-        elif action >= 6:
+        elif action >= 6 and action <10:
             reward += self.pousse(self._action_to_direction[action]["direction"])
+
+        elif action == 10 :
+            self.mazeJoueur.avidite()
 
         terminated = False
 
         # Check if agent is stuck
+        if not self.is_still_winnable():
+            reward += self.penalty_loosing_because_PV
+            terminated = True
+
         if self.terminate_next_because_stuck():
             reward += self.penalty_stuck
             terminated = True
         # Check if agent is dead
         if self.mazeJoueur.estMort():
-            reward += self.penalty_dying
+            reward += self.penalty_loosing_because_PV
             terminated = True
 
         # Check if agent reached the target
@@ -742,6 +786,7 @@ class mazeEnv(gym.Env):
                 f"Tour: {self.tour}",
                 f"PV: {self.mazeJoueur.PV}",
                 f"PM: {self.mazeJoueur.PM}",
+                f"d_Exit: {np.linalg.norm(np.subtract(self._agent_location, self._target_location), ord=1)}",
                 f"",
                 f"ACTION:",
                 f"{last_dec}",
@@ -750,6 +795,10 @@ class mazeEnv(gym.Env):
             if self.stuck:
                 stats.append(f"")
                 stats.append(f"PLAYER IS STUCK")
+            if not self.is_still_winnable:
+                stats.append(f"")
+                stats.append(self.render_is_still_winnable())
+                stats.append(f"PLAYER CANNOT WIN ANYMORE")
 
             # Draw Text on Sidebar
             for i, text in enumerate(stats):
