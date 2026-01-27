@@ -70,16 +70,22 @@ class mazeJoueur:
 
 class mazeEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 3}
-
+    
     maze_observation_size = 9
 
+    #Reward & Penalties
+
     penalty_invalid_move = -10
+
     # penalty_backward_move = -1
+    
     reward_forward_move = 10
-    reward_useful_push = 10
-    reward_valid_push = 3
-    penalty_useless_boost = -10
     reward_distance_traveled = 10
+
+    reward_useful_push = 10
+    reward_valid_push = 0
+    penalty_useless_boost = -10
+    penalty_not_using_pm = -10
 
     reward_smarter_than_minogolem = 30
     penalty_dumber_than_minogolem = -30
@@ -114,8 +120,8 @@ class mazeEnv(gym.Env):
         ]
     )
 
-    initial_start = (18, 0)
-    my_exit = (0, 18)
+    _initial_agent_location = (18, 0)
+    _target_location = (0, 18)
 
     PATTERNS = {
         1: ["Sel", "Or", "Sang", "Or"],
@@ -142,7 +148,8 @@ class mazeEnv(gym.Env):
         self.stuck = False
         self.last_decision_taken = -1
         self.visited_squares_memory = np.zeros_like(self.maze)
-
+        self.visited_squares_memory[self._initial_agent_location[0],self._initial_agent_location[1]] = 3
+    
 
         self.__ax1 = None
 
@@ -155,9 +162,7 @@ class mazeEnv(gym.Env):
 
         # Initialize positions - will be set randomly in reset()
         # Using -1,-1 as "uninitialized" state
-        self._initial_agent_location = self.initial_start
-        self._agent_location = self.initial_start
-        self._target_location = self.my_exit
+        self._agent_location = self._initial_agent_location 
 
         # Define what the agent can observe
         # Dict space gives us structured, human-readable observations
@@ -226,18 +231,22 @@ class mazeEnv(gym.Env):
             "haut": {
                 "direction": np.array([1, 0]),
                 "obs_code": 3,
+                "nom" : "bas",
             },  # placer un bloc en dessous
             "bas": {
                 "direction": np.array([-1, 0]),
                 "obs_code": 1,
+                "nom" : "haut",
             },  # placer un bloc au dessus
             "gauche": {
                 "direction": np.array([0, 1]),
                 "obs_code": 0,
+                "nom" : "droite",
             },  # placer un bloc à droite
             "droite": {
                 "direction": np.array([0, -1]),
                 "obs_code": 2,
+                "nom": "gauche",
             },  # placer un bloc à gauche
         }
 
@@ -274,6 +283,26 @@ class mazeEnv(gym.Env):
                         res[i] = 1
         return np.array(res)
 
+    def render_read_minogolems(self):
+        res = np.array(["-"] * 8, dtype=str)
+        patterns_copy = self.current_patterns.copy()
+        current_minogolem_positions_copy = self.current_minogolem_positions.copy()
+        i = 0
+        while patterns_copy:
+            next_golem = patterns_copy.pop()
+            block_direction_name = self._minogolem_position_to_direction[
+                current_minogolem_positions_copy[next_golem]
+            ]["nom"]
+            res[i] = block_direction_name
+            ##Rotate current_minogolem_positions
+            next_golem_position = current_minogolem_positions_copy[next_golem]
+            current_minogolem_positions_copy[next_golem] = (
+                current_minogolem_positions_copy["Séculaire"]
+            )
+            current_minogolem_positions_copy["Séculaire"] = next_golem_position
+            i += 1
+        return str(res)
+
     def read_minogolems(self):
         res = np.array([-1] * 8, dtype=int)
         patterns_copy = self.current_patterns.copy()
@@ -292,7 +321,7 @@ class mazeEnv(gym.Env):
             )
             current_minogolem_positions_copy["Séculaire"] = next_golem_position
             i += 1
-        return res
+        return (res)
 
     def what_block_is_here(self, position):
         (nrows, ncols) = self.size
@@ -469,6 +498,7 @@ class mazeEnv(gym.Env):
         self.stuck = False
         self.last_decision_taken = -1
         self.visited_squares_memory = np.zeros_like(self.maze)
+        self.visited_squares_memory[self._initial_agent_location[0],self._initial_agent_location[1]] = 3
 
 
         self._agent_location = self._initial_agent_location
@@ -657,6 +687,8 @@ class mazeEnv(gym.Env):
         elif action == 5:
             reward += self.next_golem_move_reward_or_penalty()
             reward = +self.usefull_boost_pm()
+            if self.mazeJoueur.PM > 0 :
+                reward += self.penalty_not_using_pm
             self.mazeJoueur.passe_tour()
             self.tour += 1
             self.minogolem_play()
@@ -790,8 +822,10 @@ class mazeEnv(gym.Env):
                 f"",
                 f"ACTION:",
                 f"{last_dec}",
+                f"",
+                f"Golem Plays:",                
             ]
-
+            stats.append(self.render_read_minogolems())
             if self.stuck:
                 stats.append(f"")
                 stats.append(f"PLAYER IS STUCK")
